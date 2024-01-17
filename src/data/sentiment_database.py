@@ -1,5 +1,8 @@
 import pyodbc
+from data.analisis import Analisis
+from data.analisis_parametro import AnalisisParametro
 from data.mensaje import Mensaje
+from data.parametro import Parametro
 
 class SentimentDatabase:
     
@@ -30,9 +33,48 @@ class SentimentDatabase:
             raise Exception("No connection to the database. Call connect() first.")
         
         cursor = self.connection.cursor()
-        cursor.execute(f"SELECT content, fecha FROM [Mensajes] WHERE [identifierConversacion] = '{idConversacion}'")
+        cursor.execute(f"SELECT content, fecha, tipoUsuario FROM [Mensajes] WHERE [identifierConversacion] = '{idConversacion}'")
         mensajes = cursor.fetchall()
         cursor.close()
 
-        return [Mensaje(m[0], m[1]) for m in mensajes]
+        return [Mensaje(m[0], m[1], m[2]) for m in mensajes]
+    
+    def get_parametros(self):
+        if not self.connection:
+            raise Exception("No connection to the database. Call connect() first.")
+        
+        cursor = self.connection.cursor()
+        cursor.execute(f"SELECT id, detalle, si, no, parcial FROM [Parametros] WHERE [Activo] = 1")
+        parametros = cursor.fetchall()
+        cursor.close()
+
+        return [Parametro(p[0], p[1], p[2], p[3], p[4]) for p in parametros]
+    
+    def guarda_analisis_masivo(self, analisis: Analisis, analisis_parametros: [AnalisisParametro]):
+        if not self.connection:
+            raise Exception("No connection to the database. Call connect() first.")
+        
+        cursor = self.connection.cursor()
+
+        try:
+            cursor.execute(
+                "INSERT INTO [Analisis] (id, idConversacion, comentario, fecha) VALUES (?, ?, ?, ?)",
+                analisis.id, analisis.idConversacion, analisis.comentario, analisis.fecha
+            )
+
+            cursor.executemany(
+                "INSERT INTO [AnalisisParametro] (idAnalisis, idParametro, calificacion) VALUES (?, ?, ?)",
+                [(a.idAnalisis, a.idParametro, a.calificacion) for a in analisis_parametros]
+            )
+
+            self.connection.commit()
+
+            print(f"Analizada conversacion {analisis.idConversacion}")
+
+        except Exception as e:
+            self.connection.rollback()
+            print(f"Error en conversacion {analisis.idConversacion}: \n{e}")
+
+        finally:
+            cursor.close()
 

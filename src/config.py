@@ -7,7 +7,7 @@ def _loadPrompt(path):
     try:
         with open(path, 'r') as file:
             objeto = json.load(file)
-            Globals.promtp = objeto['prompt']
+            Globals.system_message = objeto['system_message']
     except FileNotFoundError:
         print(f"Error: No se encontró el archivo '{path}'.")
     except json.JSONDecodeError:
